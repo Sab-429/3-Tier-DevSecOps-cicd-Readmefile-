@@ -1,25 +1,28 @@
+---
+
 COMPLETE DEVSECOPS 3-TIER CI/CD PIPELINE (AWS + JENKINS)
 
 ---
 
-☁️ AWS EC2 SETUP
+## AWS EC2 SETUP
 
 Launch EC2:
+
 - Ubuntu 22.04
 - minimum 4GB memory machine
 - 12GB storage
 
 Security Group Inbound Rules:
-- 22   → SSH
+
+- 22 → SSH
 - 8080 → Jenkins
 - 9000 → SonarQube
-- 80   → Application
-- 443  → HTTPS (optional)
+- 80 → Application
+- 443 → HTTPS (optional)
 
 ---
 
-
-## 🔧 SYSTEM SETUP
+## SYSTEM SETUP
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -33,11 +36,13 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y docker.io
 sudo apt install -y docker-compose
 ```
+
 ```bash
 sudo systemctl start docker
 sudo systemctl enable docker
 sudo usermod -aG docker $USER
 ```
+
 ```bash
 sudo reboot
 ```
@@ -48,7 +53,7 @@ Verify:
 docker --version
 ```
 
---- 
+---
 
 ## JENKINS INSTALLATION
 
@@ -69,21 +74,25 @@ echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc]" \
 sudo apt update
 sudo apt install jenkins
 ```
+
 ```bash
 sudo systemctl start jenkins
 sudo systemctl enable jenkins
 ```
+
 Check:
+
 ```bash
 sudo systemctl status jenkins
 ```
 
 ---
 
-
 ## ACCESS JENKINS
 
-http://<EC2-IP>:8080
+security->Edit inbound port to 8080
+
+http://EC2-IP:8080
 
 Get password:
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
@@ -94,37 +103,65 @@ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 ---
 
 
-## INSTALL JENKINS PLUGINS
+## SONARQUBE SETUP (DOCKER)
 
-Manage Jenkins → Plugins → Install:
+- Architecture Overview
 
-- Git
-- Pipeline
-- SonarQube Scanner
-- Docker Pipeline
-- OWASP Dependency-Check
+Developer → GitHub → Jenkins (EC2-1) → SonarQube (EC2-2) → Quality Gate
 
-Restart Jenkins after install.
+- Docker setup
 
-========================
-🔍 SONARQUBE SETUP (DOCKER)
-========================
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo systemctl start docker
+sudo systemctl enable docker
+```
+- Configure Kernel Parameters
 
+```bash
+sudo sysctl -w vm.max_map_count=262144
+sudo sysctl -w fs.file-max=65536
+```
+
+- Make these changes permanent
+```bash
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+echo "fs.file-max=65536" | sudo tee -a /etc/sysctl.conf
+```
+
+- Apply the configuration:
+
+```bash
+sudo sysctl -p
+```
+- Pull SonarQube Docker Image 
+
+```bash
 docker pull sonarqube:lts
+```
 
+- Run SonarQube Container
+```bash
 docker run -d \
---name sonarqube \
--p 9000:9000 \
-sonarqube:lts
+ --name sonarqube \
+ -p 9000:9000 \
+ --restart always \
+ sonarqube:lts
+```
 
-Access:
-http://<EC2-IP>:9000
+- Check container status:
+```bash
+docker ps
+```
 
-Login:
-admin / admin
+- Open Required Port
+```bash
+sudo ufw allow 9000
+sudo ufw reload
+```
 
-Generate Token:
-My Account → Security → Generate Token
+---
+
 
 ========================
 🔐 CONNECT SONARQUBE WITH JENKINS
@@ -137,33 +174,47 @@ Manage Jenkins → System → SonarQube Servers
 - Name: sonar-server
 
 Manage Jenkins → Tools:
+
 - Add Sonar Scanner
 
-========================
-🛡️ TRIVY INSTALLATION
-========================
+--- 
 
-sudo apt install wget apt-transport-https gnupg -y
+## TRIVY INSTALLATION
 
-wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+```bash
+sudo apt-get install wget gnupg
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+sudo apt-get update
+sudo apt-get install trivy
+```
 
-echo deb https://aquasecurity.github.io/trivy-repo/deb stable main | \
-sudo tee /etc/apt/sources.list.d/trivy.list
+---
 
-sudo apt update
-sudo apt install trivy -y
 
-Test:
-trivy image nginx
+## OWASP DEPENDENCY CHECK
 
-========================
-🔎 OWASP DEPENDENCY CHECK
-========================
+Manage Jenkins → Plugins → Install:
 
-Already installed via plugin.
+- SonarQube Scanner
+- Sonar Quality Gates
+- OWASP Dependency-Check
+- Docker
+
+Restart Jenkins after install.
+
+# jenkins-SonarQube integration
+
+Add this in SonarQube
 
 Configure:
-Manage Jenkins → Tools → Dependency Check
+Adminstration → Configuration → webhook->create
+
+url : http://EC2_PUBLIC_KEY:8080/sonarqube-webhook/
+
+# Generate Tokens
+
+
 
 ========================
 🐳 DOCKER APP BUILD
@@ -190,7 +241,7 @@ docker run -d -p 80:3000 myapp
 New Item → Pipeline → Paste below:
 
 pipeline {
-    agent any
+agent any
 
     tools {
         jdk 'jdk17'
@@ -252,6 +303,7 @@ pipeline {
             }
         }
     }
+
 }
 
 ========================
@@ -279,12 +331,13 @@ sudo nano /etc/nginx/sites-available/myapp
 Paste:
 
 server {
-    listen 80;
-    server_name yourdomain.com;
+listen 80;
+server_name yourdomain.com;
 
     location / {
         proxy_pass http://localhost:3000;
     }
+
 }
 
 Enable:
@@ -327,6 +380,7 @@ docker logs sonarqube
 🚀 Built a Complete 3-Tier DevSecOps CI/CD Pipeline on AWS!
 
 Tech Stack:
+
 - Jenkins
 - Docker
 - SonarQube
@@ -339,7 +393,7 @@ Tech Stack:
 ✔ Code quality analysis using SonarQube  
 ✔ Security scanning with Trivy & OWASP  
 ✔ Dockerized deployment  
-✔ GitHub webhook integration  
+✔ GitHub webhook integration
 
 This project helped me understand real-world DevSecOps workflows including automation, security, and deployment.
 
