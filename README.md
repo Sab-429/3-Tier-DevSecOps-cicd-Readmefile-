@@ -1,22 +1,22 @@
-############################################################
-🚀 COMPLETE DEVSECOPS 3-TIER CI/CD PIPELINE (AWS + JENKINS)
-############################################################
+COMPLETE DEVSECOPS 3-TIER CI/CD PIPELINE (AWS + JENKINS)
 
-========================
+---
+
 ☁️ AWS EC2 SETUP
-========================
 
 Launch EC2:
 - Ubuntu 22.04
-- t2.medium (important for SonarQube)
-- 20GB storage
+- minimum 4GB memory machine
+- 12GB storage
 
 Security Group Inbound Rules:
-22   → SSH
-8080 → Jenkins
-9000 → SonarQube
-80   → Application
-443  → HTTPS (optional)
+- 22   → SSH
+- 8080 → Jenkins
+- 9000 → SonarQube
+- 80   → Application
+- 443  → HTTPS (optional)
+
+---
 
 ========================
 🔧 SYSTEM SETUP
