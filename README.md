@@ -3,7 +3,7 @@
 COMPLETE DEVSECOPS 3-TIER CI/CD PIPELINE (AWS + JENKINS)
 
 ---
-![DevSecOpsPipeline](Screenshot 2026-03-22 144305.png)
+![DevSecOpsPipeline](workflow.png)
 ## AWS EC2 SETUP
 
 Launch EC2:
@@ -223,7 +223,7 @@ Manage jenkins → Tools → Add Dependency Check -> install automatically → i
 
 
 ## docker ps
-![docker-stats](Screenshot 2026-03-22 140028.png)
+![docker-stats](docker.png)
 
 
 ## JENKINS PIPELINE
@@ -278,4 +278,4 @@ pipeline{
 }
 ```
 
-![finalResult](Screenshot 2026-03-21 182441.png)
+![finalResult](result.png)
