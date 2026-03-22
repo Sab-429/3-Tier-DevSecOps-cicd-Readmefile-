@@ -1,6 +1,6 @@
 ---
 
-COMPLETE DEVSECOPS 3-TIER CI/CD PIPELINE (AWS + JENKINS)
+DEVSECOPS 3-TIER  PIPELINE (AWS + JENKINS)
 
 ---
 ![DevSecOpsPipeline](workflow.png)
@@ -171,6 +171,9 @@ sudo apt-get update
 sudo apt-get install trivy
 ```
 
+# Results of Trivy
+![container-scan](Trivy.png)
+
 ---
 
 
@@ -184,6 +187,9 @@ Manage Jenkins → Plugins → Install:
 - Docker
 
 Restart Jenkins after install.
+
+# Dependency result
+![dependency-scan](OWASP.png)
 
 ---
 
@@ -277,5 +283,6 @@ pipeline{
     }
 }
 ```
+![SonarQube-quality-gate-analysis](qualitygate.png)
 
 ![finalResult](result.png)
