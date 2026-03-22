@@ -3,7 +3,7 @@
 COMPLETE DEVSECOPS 3-TIER CI/CD PIPELINE (AWS + JENKINS)
 
 ---
-
+![DevSecOpsPipeline](Screenshot 2026-03-22 144305.png)
 ## AWS EC2 SETUP
 
 Launch EC2:
@@ -160,24 +160,6 @@ sudo ufw allow 9000
 sudo ufw reload
 ```
 
----
-
-
-========================
-🔐 CONNECT SONARQUBE WITH JENKINS
-========================
-
-Manage Jenkins → System → SonarQube Servers
-
-- Add Server
-- Add Token
-- Name: sonar-server
-
-Manage Jenkins → Tools:
-
-- Add Sonar Scanner
-
---- 
 
 ## TRIVY INSTALLATION
 
@@ -203,203 +185,97 @@ Manage Jenkins → Plugins → Install:
 
 Restart Jenkins after install.
 
+---
+
 # jenkins-SonarQube integration
+
+- step 1
 
 Add this in SonarQube
 
 Configure:
-Adminstration → Configuration → webhook->create
+
+Adminstration → Configuration → webhook → create
 
 url : http://EC2_PUBLIC_KEY:8080/sonarqube-webhook/
 
-# Generate Tokens
+Generate Tokens
+
+Security → Tokens → create token 
+
+- step 2
+
+Add this in jenkins
+
+- subpart 1
+
+Manage jenkins → system → SonarQube Server → name like Sonar (Later used in pipeline)
+
+server Authentication Token → paste the token from sonarqube
+
+- subpart 2
+
+Manage jenkins → Tools → SonarQube Scanner installation -> save
+
+- Dependency-Check installation
+
+Manage jenkins → Tools → Add Dependency Check -> install automatically → install via github.com
 
 
+## docker ps
+![docker-stats](Screenshot 2026-03-22 140028.png)
 
-========================
-🐳 DOCKER APP BUILD
-========================
 
-Create Dockerfile:
-
-FROM node:18
-WORKDIR /app
-COPY . .
-RUN npm install
-CMD ["npm", "start"]
-
-Build:
-docker build -t myapp .
-
-Run:
-docker run -d -p 80:3000 myapp
-
-========================
-🔁 JENKINS PIPELINE
-========================
+## JENKINS PIPELINE
 
 New Item → Pipeline → Paste below:
 
-pipeline {
-agent any
+follow → GitHub project → paste Github URL → Throttle builds → build triggers for automatic SCM polling
 
-    tools {
-        jdk 'jdk17'
+```bash
+pipeline{
+    agent any
+    environment{
+        SONAR_HOME=tool "Sonar"
     }
-
-    environment {
-        SCANNER_HOME = tool 'sonar-scanner'
-    }
-
-    triggers {
-        githubPush()
-    }
-
-    stages {
-
-        stage('Clone Code') {
-            steps {
-                git 'https://github.com/your-repo.git'
+    stages{
+        stage("Clone Code from GitHub"){
+            steps{
+               git url: "https://github.com/username/repo.git", branch: "main"
             }
         }
-
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t myapp .'
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('sonar-server') {
-                    sh '''
-                    $SCANNER_HOME/bin/sonar-scanner \
-                    -Dsonar.projectKey=myapp \
-                    -Dsonar.sources=.
-                    '''
+        stage("SonarQube Quality Analysis"){
+            steps{
+                withSonarQubeEnv("Sonar"){
+                    sh "$SONAR_HOME/bin/sonar-scanner -Dsonar.projectName=REPOSITORY-NAME -Dsonar.projectKey=REPOSITORY-NAME"
                 }
             }
         }
-
-        stage('OWASP Dependency Check') {
-            steps {
-                dependencyCheck additionalArguments: '--scan .'
+        stage("OWASP Dependency check"){
+            steps{
+                dependencyCheck additionalArguments: '--scan ./', odcInstallation: 'Dependecy-check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-
-        stage('Trivy Scan') {
-            steps {
-                sh 'trivy image myapp'
+        stage("Sonar Quality Gate Scan"){
+            steps{
+                timeout(time: 2, unit: "MINUTES"){
+                    waitForQualityGate abortPipeline: false
+                }
             }
         }
-
-        stage('Deploy Container') {
-            steps {
-                sh '''
-                docker stop myapp || true
-                docker rm myapp || true
-                docker run -d -p 80:3000 --name myapp myapp
-                '''
+        stage("Trivy File System Scan"){
+            steps{
+                sh "trivy fs --format table -o trivy-fs-report.html ."
+            }
+        }
+        stage("Deploy using Docker-compose"){
+            steps{
+                sh "docker-compose up -d"
             }
         }
     }
-
 }
+```
 
-========================
-🔗 GITHUB WEBHOOK SETUP
-========================
-
-GitHub Repo → Settings → Webhooks → Add:
-
-Payload URL:
-http://<EC2-IP>:8080/github-webhook/
-
-Content Type:
-application/json
-
-Now every push triggers pipeline automatically.
-
-========================
-🌐 NGINX + DOMAIN SETUP
-========================
-
-sudo apt install nginx -y
-
-sudo nano /etc/nginx/sites-available/myapp
-
-Paste:
-
-server {
-listen 80;
-server_name yourdomain.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-    }
-
-}
-
-Enable:
-
-sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
-
-Test:
-sudo nginx -t
-
-Restart:
-sudo systemctl restart nginx
-
-========================
-📸 IMAGE PLACEHOLDERS
-========================
-
-[ADD SCREENSHOT: Jenkins Dashboard]
-[ADD SCREENSHOT: SonarQube Dashboard]
-[ADD SCREENSHOT: Pipeline Success]
-[ADD SCREENSHOT: Trivy Scan Output]
-
-========================
-⚠️ COMMON ERRORS
-========================
-
-Docker permission:
-sudo usermod -aG docker $USER
-sudo reboot
-
-Jenkins restart:
-sudo systemctl restart jenkins
-
-SonarQube logs:
-docker logs sonarqube
-
-========================
-💼 LINKEDIN POST (COPY)
-========================
-
-🚀 Built a Complete 3-Tier DevSecOps CI/CD Pipeline on AWS!
-
-Tech Stack:
-
-- Jenkins
-- Docker
-- SonarQube
-- Trivy
-- OWASP Dependency Check
-- AWS EC2
-
-✨ Features:
-✔ Automated CI/CD pipeline  
-✔ Code quality analysis using SonarQube  
-✔ Security scanning with Trivy & OWASP  
-✔ Dockerized deployment  
-✔ GitHub webhook integration
-
-This project helped me understand real-world DevSecOps workflows including automation, security, and deployment.
-
-#DevOps #DevSecOps #Jenkins #Docker #AWS #CyberSecurity
-
-############################################################
-✅ FINAL RESULT:
-FULLY AUTOMATED, SECURE CI/CD PIPELINE 🚀
-############################################################
+![finalResult](Screenshot 2026-03-21 182441.png)
